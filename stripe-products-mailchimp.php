@@ -1,37 +1,38 @@
 <?php
-/*
-Plugin Name: Product Tag Manager
-Description: Manage product tags by integrating Stripe and Mailchimp.
-Version: 1.0
-Author: Hiren Patel
-*/
 
+/*
+ * Plugin Name: Product Tag Manager
+ * Description: Manage product tags by integrating Stripe and Mailchimp.
+ * Version: 1.0
+ * Author: Hiren Patel
+ */
 
 require_once __DIR__ . '/vendor/autoload.php';
 
 add_action('admin_init', 'ptm_register_settings');
 
-function ptm_register_settings() {
+function ptm_register_settings()
+{
     register_setting('ptm_settings_group', 'ptm_stripe_api_key');
     register_setting('ptm_settings_group', 'ptm_mailchimp_api_key');
     register_setting('ptm_settings_group', 'ptm_mailchimp_list_id');
 }
 
 // Fetch Mailchimp tags
-function fetch_mailchimp_tags() {
-
+function fetch_mailchimp_tags()
+{
     $apiKey = get_option('ptm_mailchimp_api_key');
     $listId = get_option('ptm_mailchimp_list_id');
 
     if (!$apiKey || !$listId) {
         return [];
     }
-    
-    $dc = substr($apiKey, strpos($apiKey, '-') + 1); // Extract Data Center
+
+    $dc = substr($apiKey, strpos($apiKey, '-') + 1);  // Extract Data Center
 
     $all_tags = [];
     $offset = 0;
-    $count = 500; // Fetch 10 tags per request
+    $count = 500;  // Fetch 10 tags per request
 
     do {
         // Define API URL with pagination parameters
@@ -64,17 +65,16 @@ function fetch_mailchimp_tags() {
         // If the number of fetched tags is less than the count, stop fetching
         $fetched_count = !empty($tags_data['tags']) ? count($tags_data['tags']) : 0;
         $offset += $count;
-
-    } while ($fetched_count == $count); // Continue if fetched records match count
+    } while ($fetched_count == $count);  // Continue if fetched records match count
 
     return $all_tags;
 }
 
-
 // Hook to add the admin menu page
 add_action('admin_menu', 'custom_product_tag_menu');
 
-function custom_product_tag_menu() {
+function custom_product_tag_menu()
+{
     add_menu_page(
         'Product Tags',
         'Product Tags',
@@ -95,7 +95,8 @@ function custom_product_tag_menu() {
     );
 }
 
-function ptm_api_settings_page() {
+function ptm_api_settings_page()
+{
     ?>
     <div class="wrap">
         <h1>API Settings</h1>
@@ -124,11 +125,9 @@ function ptm_api_settings_page() {
     <?php
 }
 
-
-
 // Fetch Stripe products
-function fetch_stripe_products() {
-
+function fetch_stripe_products()
+{
     $stripe_api_key = get_option('ptm_stripe_api_key');
     if (!$stripe_api_key) {
         return [];
@@ -137,7 +136,7 @@ function fetch_stripe_products() {
     \Stripe\Stripe::setApiKey($stripe_api_key);
 
     try {
-        $products = \Stripe\Product::all(["limit" => 100]);
+        $products = \Stripe\Product::all(['limit' => 100]);
         return $products->data;
     } catch (Exception $e) {
         return [];
@@ -145,7 +144,8 @@ function fetch_stripe_products() {
 }
 
 // Admin Page Content
-function product_tags_page() {
+function product_tags_page()
+{
     if (!current_user_can('manage_options')) {
         return;
     }
@@ -186,7 +186,7 @@ function product_tags_page() {
                     <td>
                         <select name="product_title" required class="regular-text">
                             <option value="">Select a Product</option>
-                            <?php foreach ($products as $product) : ?>
+                            <?php foreach ($products as $product): ?>
                                 <option value="<?php echo esc_attr($product->name); ?>">
                                     <?php echo esc_html($product->name); ?>
                                 </option>
@@ -199,7 +199,7 @@ function product_tags_page() {
                     <td>
                         <select name="product_tag" required class="regular-text">
                             <option value="">Select a Tag</option>
-                            <?php foreach ($mailchimp_tags as $tag) : ?>
+                            <?php foreach ($mailchimp_tags as $tag): ?>
                                 <option value="<?php echo esc_attr($tag); ?>">
                                     <?php echo esc_html($tag); ?>
                                 </option>
@@ -221,8 +221,8 @@ function product_tags_page() {
                 </tr>
             </thead>
             <tbody>
-                <?php if (!empty($saved_tags)) : ?>
-                    <?php foreach ($saved_tags as $index => $entry) : ?>
+                <?php if (!empty($saved_tags)): ?>
+                    <?php foreach ($saved_tags as $index => $entry): ?>
                         <tr>
                             <td><?php echo esc_html($entry['title']); ?></td>
                             <td><?php echo esc_html($entry['tag']); ?></td>
@@ -231,7 +231,7 @@ function product_tags_page() {
                             </td>
                         </tr>
                     <?php endforeach; ?>
-                <?php else : ?>
+                <?php else: ?>
                     <tr><td colspan="3">No product tags saved yet.</td></tr>
                 <?php endif; ?>
             </tbody>
@@ -250,3 +250,191 @@ function product_tags_page() {
         }
     }
 }
+
+function add_update_mailchimp_contact($data, $tags)
+{
+    // Mailchimp API credentials
+    $apiKey =  get_option('ptm_mailchimp_api_key');
+    $listId = get_option('ptm_mailchimp_list_id');
+    if (!$apiKey || !$listId) {
+        return;
+    }
+
+    // Contact details
+    $email = $data['email'];
+
+    // First Name, Last Name, Email, Check-in Date, Check-out Date
+    // add or update the contact details as mentioned
+
+    if (isset($data['checkin'])) {
+        $contact = [
+            'email_address' => $email,
+            'status' => 'subscribed',
+            'merge_fields' => [
+                'FNAME' => $data['first_name'],
+                'LNAME' => $data['last_name'],
+                'CHECKIN' => $data['checkin'],
+                'CHECKOUT' => $data['checkout'],
+                'CDISCOUNT' => $data['cdiscount'],
+                'LONGSTAY20' => $data['longstay20'],
+                'LONGSTAY15' => $data['longstay15'],
+            ],
+            'tags' => $tags
+        ];
+    } else {
+        $contact = [
+            'email_address' => $email,
+            'status' => 'subscribed',
+            'merge_fields' => [
+                'FNAME' => $data['first_name'],
+                'LNAME' => $data['last_name']
+            ],
+            'tags' => $tags
+        ];
+    }
+
+    // API endpoint
+    $endpoint = 'https://us21.api.mailchimp.com/3.0/lists/' . $listId . '/members';
+
+    $jsonData = json_encode($contact);
+
+    // Make the API request
+    $ch = curl_init($endpoint);
+    curl_setopt($ch, CURLOPT_USERPWD, 'apikey:' . $apiKey);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+
+    $result = curl_exec($ch);
+
+    // Check for errors
+    if (curl_errno($ch)) {
+        $currentDate = date('Y-m-d');
+
+        $filePath = plugin_dir_path(__FILE__) . 'booking_' . $currentDate . '.txt';
+
+        // Append the result to the file
+        file_put_contents($filePath, $result . PHP_EOL, FILE_APPEND);
+    } else {
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($statusCode == 400) {
+            $emailHash = md5(strtolower($email));  // MD5 hash of the email address
+            $endpoint = 'https://us21.api.mailchimp.com/3.0/lists/' . $listId . '/members/' . $emailHash;
+            $ch = curl_init($endpoint);
+            curl_setopt($ch, CURLOPT_USERPWD, 'apikey:' . $apiKey);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');  // Use PATCH for updating
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+
+            $result = curl_exec($ch);
+
+            // Check for errors
+            if (curl_errno($ch)) {
+                $currentDate = date('Y-m-d');
+
+                $filePath = plugin_dir_path(__FILE__) . 'booking_' . $currentDate . '.txt';
+
+                // Append the result to the file
+                file_put_contents($filePath, $result . PHP_EOL, FILE_APPEND);
+            } else {
+                //  echo 'Update result: ' . $result;
+            }
+
+            // Close the cURL session
+        } else {
+            // echo 'Error: ' . $result;
+        }
+    }
+
+    // Close the cURL handle
+    curl_close($ch);
+}
+
+// Function to handle Stripe Webhook
+function handle_stripe_webhook(WP_REST_Request $request)
+{
+    // get stripe api key from settings
+    $stripe_api_key = get_option('ptm_stripe_api_key');
+    if (!$stripe_api_key) {
+        return new WP_REST_Response('Stripe API key not set', 400);
+    }
+    // Set Stripe API key
+    \Stripe\Stripe::setApiKey($stripe_api_key);
+
+    $payload = $request->get_body();
+    $data = json_decode($payload, true);
+
+    // Check if event type is "checkout.session.completed"
+    if (isset($data['type']) && $data['type'] === 'checkout.session.completed') {
+        $currentDate = date('Y-m-d');
+        $filePath = plugin_dir_path(__FILE__) . 'flexbooking_' . $currentDate . '.txt';
+        file_put_contents($filePath, $payload . PHP_EOL, FILE_APPEND);
+
+        $customer_details = $data['data']['object']['customer_details'] ?? [];
+        $session_id = $data['data']['object']['id'];  // Get session ID
+
+        $email = $customer_details['email'] ?? null;
+        $name = $customer_details['name'] ?? null;
+
+        // Split name into first_name and last_name
+        $first_name = $last_name = null;
+        if (!empty($name)) {
+            $name_parts = explode(' ', $name, 2);
+            $first_name = $name_parts[0];
+            $last_name = $name_parts[1] ?? '';
+        }
+
+        // Initialize default tag
+        $tags = ['customer'];
+
+        // Fetch stored product-to-tag mappings from the WordPress options table
+        $saved_tags = get_option('custom_product_tags', []);
+
+        try {
+            // Retrieve line items for the session
+            $line_items = \Stripe\Checkout\Session::allLineItems($session_id);
+
+            foreach ($line_items->data as $item) {
+                $product_name = strtolower($item->description);  // Convert to lowercase for case-insensitive check
+
+                // Loop through stored product mappings and check for matches
+                foreach ($saved_tags as $entry) {
+                    if (stripos($product_name, strtolower($entry['title'])) !== false) {
+                        $tags[] = $entry['tag'];  // Add tag if product name matches
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            file_put_contents($filePath, 'Error fetching line items: ' . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        }
+
+        // Remove duplicate tags
+        $tags = array_unique($tags);
+
+        // Prepare customer data
+        $customer_data = [
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'email' => $email
+        ];
+
+        // Update Mailchimp contact with tags
+        add_update_mailchimp_contact($customer_data, $tags);
+    }
+
+    return new WP_REST_Response('Webhook received', 200);
+}
+
+add_action('rest_api_init', function () {
+    register_rest_route('stripe-products-mailchimp/v1', '/webhook', [
+        'methods' => 'POST',
+        'callback' => 'handle_stripe_webhook',
+        'permission_callback' => '__return_true',
+    ]);
+});   
+
+
