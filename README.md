@@ -1,5 +1,8 @@
 # Product-Tag-Manager
 Manage product tags by integrating Stripe products and Mailchimp.
+
+A WordPress plugin that integrates with Stripe and Mailchimp, allowing you to assign Mailchimp tags to Stripe products directly from your WordPress admin dashboard.
+
 ![Screenshot_1_product_tags](https://github.com/user-attachments/assets/33315b61-f251-4ee3-82fa-a4926800a14f)
 
 ![Screenshot_2_product_tags](https://github.com/user-attachments/assets/f180c698-9547-43a3-945d-3c307376482e)
