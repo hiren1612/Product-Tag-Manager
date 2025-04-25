@@ -34,3 +34,6 @@ Manage product tags by integrating Stripe and Mailchimp.
     Go to Product Tags in the admin menu.
 
     Here, you can assign Mailchimp tags to your Stripe products using the interface provided.
+
+Use following URL in your Stripe's web hook response URL:
+https://www.yourdomain.com/wp-json/stripe-products-mailchimp/v1/webhook
